@@ -14,7 +14,7 @@ application with the -advanced-telemetry option.
 
 ### Setup
 
-1. You need Python. I've tested 2.6.1 (Mac) and ActivePython 2.7.2 (Win).
+1. You need Python 3.
 1. For LZMA-compressed SWFs, you need [pylzma](http://www.joachim-bauch.de/projects/pylzma/).
 
 ### Usage
@@ -35,7 +35,7 @@ By default only a summary report is generated. Use -f to get reports on all fram
 
 ### Usage
 
-    Usage: python telemetry.py [options]
+    Usage: python3 telemetry.py [options]
 
     Options:
       -h, --help            show this help message and exit
@@ -96,7 +96,7 @@ Scout settings.
 
 ### Usage
 
-	 python flmserv.py [options]
+	 python3 flmserv.py [options]
 
 	Options:
 	  -h, --help   show this help message and exit
@@ -110,6 +110,6 @@ Telemetry.py uses this to parse the amf3 files. It can also be used standalone
 to convert amf3 files (or .flm files) into JSON text data.
 
 ### Usage
-	  python amf3reader.py filename [filename]...
+	  python3 amf3reader.py filename [filename]...
 		Where filename is a .flm file (or any amf3 formatted data)
 

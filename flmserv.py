@@ -62,7 +62,7 @@ class ClientThread ( threading.Thread ):
         return (fname+str(i)+ext)   		
  
     def run ( self ):
-        print 'Connected:', self.details [ 0 ], self.details[ 1 ], timestamp()
+        print('Connected:', self.details[0], self.details[1], timestamp())
         connected = True;
         f = None
         try:
@@ -86,7 +86,7 @@ class ClientThread ( threading.Thread ):
             f.close()
             print ("Created "+fname)
         self.channel.close()
-        print 'Closed:', self.details [ 0 ], self.details[ 1 ], timestamp()
+        print('Closed:', self.details[0], self.details[1], timestamp())
 
 
 
@@ -109,19 +109,19 @@ try:
     server.listen ( 5 )
     server.settimeout( 2.0 )
 except:
-    print "unable to initialize server"
-    print "Close any other Telemetry services"
+    print("unable to initialize server")
+    print("Close any other Telemetry services")
     exit(1);
 
 # Have the server serve "forever":
-print "Telemetry Monitor Service Running, ^c to quit"
+print("Telemetry Monitor Service Running, ^c to quit")
 while True:
     try:
         channel, details = server.accept()
     except socket.timeout:
         continue
     except:
-        print "Server Session canceled %d sessions" % sessionCount
+        print("Server Session canceled %d sessions" % sessionCount)
         sys.exit(1)
     ClientThread ( channel, details, sessionCount ).start()
     sessionCount += 1

@@ -72,7 +72,7 @@ def consumeSwfTag(f):
 	recordHeaderRaw = f.read(2)
 	tagBytes += recordHeaderRaw
 	
-	if recordHeaderRaw == "":
+	if recordHeaderRaw == b"":
 		raise Exception("Bad SWF: Unexpected end of file")
 	recordHeader = struct.unpack("BB", recordHeaderRaw)
 	tagCode = ((recordHeader[1] & 0xff) << 8) | (recordHeader[0] & 0xff)
@@ -94,7 +94,7 @@ def outputTelemetryTag(o, passwordClear):
 	lengthBytes = 2 # reserve
 	if passwordClear:
 		sha = hashlib.sha256()
-		sha.update(passwordClear)
+		sha.update(passwordClear.encode('utf-8'))
 		passwordDigest = sha.digest()
 		lengthBytes += len(passwordDigest)
 
@@ -230,7 +230,7 @@ if __name__ == "__main__":
 			outputInt(outFile, len(compressed)-5) # LZMA SWF has CompressedLength header field
 			outFile.write(compressed)
 		else:
-			assert(false)
+			assert False
 	
 	outFile.close()
 	

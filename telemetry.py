@@ -40,7 +40,7 @@ class SortDict(dict):
     """ helper class adds to dict entry and sorts by value descending
     """
     def addTo(self,key,value):
-       if self.has_key(key):
+       if key in self:
            self[key] += value
        else:
            self[key] = value
@@ -50,15 +50,15 @@ class SortDict(dict):
             self[key] = value
             
     def getSorted(self):
-        return sorted(self.items(),key=itemgetter(1),reverse=True)
+        return sorted(list(self.items()),key=itemgetter(1),reverse=True)
         
     def pprint(self):
         for a in self.getSorted():
-            print a[0],":",locale.format("%d", a[1], grouping=True)
+            print(a[0],":",locale.format_string("%d", a[1], grouping=True))
     
     def total(self):
         total = 0
-        for k,v in self.items():
+        for k,v in list(self.items()):
             total += v;
         return total
    
@@ -92,7 +92,7 @@ class Reporter():
  
     def addSpan(self,metric):  
        name = metric['name']
-       if metric.has_key('span'):
+       if 'span' in metric:
             span = metric['span']
             time = metric['time']
             if self.startTime == 0:
@@ -118,14 +118,14 @@ class Reporter():
             return 0
             
     def report(self):
-        print "Most time by Category:"
+        print("Most time by Category:")
         sortedMetrics = self.metrics.getSorted();
         for a in self.categories.getSorted():
             category = a[0]
             span = a[1]*1.0
             percent = self.percentSpan(span)
             if percent > 0:
-                print "%s: %.3f %d%%"  % (category,span/1000, percent)  
+                print("%s: %.3f %d%%"  % (category,span/1000, percent))  
                 #print category,":",locale.format("%d", span, grouping=True), str(percent)+"%"  
                 if options.metrics:
                     for m in sortedMetrics:
@@ -135,16 +135,16 @@ class Reporter():
                             else:
                                 percentOfCategory = 0
                             if percentOfCategory > self.metricThreshold:
-                                print "  %s: %.3f %d%%"  % ( m[0], m[1]/1000.0, percentOfCategory)
+                                print("  %s: %.3f %d%%"  % ( m[0], m[1]/1000.0, percentOfCategory))
                          
         
         if options.showMemory:                                 
-           print "Memory Average:"
+           print("Memory Average:")
            for m in self.memory.getSorted():
                mType = m[0]
                mValue = m[1]
                mCount = self.memCount[mType]
-               print "  %s: avg=%d kb, max=%d kb" % (mType, int(mValue/mCount), self.memMax.get(mType,0))
+               print("  %s: avg=%d kb, max=%d kb" % (mType, int(mValue/mCount), self.memMax.get(mType,0)))
         #print "Most time by Metrics"
         #for a in sortedMetrics:
         #    percent = self.percentSpan(a[1])
@@ -193,14 +193,17 @@ class IndexList(list):
         # (delta values already resolved
 
 
-    def __getslice__(self, i, j):
-        newIndex = IndexList(self.marker)
-        newIndex.positions = self.positions[i:j]
-        newIndex.extend(list.__getslice__(self,i,j))
-        if len(newIndex):
-            newIndex.startTime = newIndex[0]
-            newIndex.endTime = newIndex[-1]
-        return newIndex
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            i, j, _ = key.indices(len(self))
+            newIndex = IndexList(self.marker)
+            newIndex.positions = self.positions[i:j]
+            newIndex.extend(list.__getitem__(self, key))
+            if len(newIndex):
+                newIndex.startTime = newIndex[0]
+                newIndex.endTime = newIndex[-1]
+            return newIndex
+        return list.__getitem__(self, key)
     
     def getIndexByTime(self, time):
         """ finds the frame interval that contains the time given """
@@ -346,32 +349,38 @@ class swfInstance():
         out = timeStr(metric.get('time',0))+": "
         out += "  " * depth
         out += name
-        if metric.has_key("span"):
+        if "span" in metric:
             out += " = " + str(metric['span'])
-        if metric.has_key("value"):
+        if "value" in metric:
             if type(metric['value']) == str:
                 out += " = " + '"'+metric['value']+'"'
             else:
                 out += " = " + str(metric['value'])
-        print out
+        print(out)
 
              
-    def addMetric(self,metric):   
+    def addMetric(self,metric):
         #print "addMetric", metric
+        if not isinstance(metric, dict):
+            return  # skip non-dict records (e.g. raw scalars from malformed files)
         self.metricCount += 1
         """ Adds a metric to the swf metric collection """
         # keep running telemetry time
         # support new metrics that reference time as "delta"
-        if metric.has_key("delta"):
+        if "delta" in metric:
             # for stream content we adjust delta values
             # flasmMonitor saved content is already adjusted
+            try:
+                delta = int(metric["delta"])
+            except (ValueError, TypeError):
+                return  # skip malformed record with non-numeric delta
             if self.streaming:
-                self.lastSpanTime += metric["delta"]
+                self.lastSpanTime += delta
                 metric["time"] = self.lastSpanTime
             else:
-                metric["time"] = metric['delta']
+                metric["time"] = delta
             
-        if metric.has_key("time"):
+        if "time" in metric:
             self.time = metric["time"] 
             #if self.time < 100:
             #    print "INVALID TIME", metric
@@ -391,13 +400,13 @@ class swfInstance():
                 return
            elif name==".prof.exit.time":
                 if len(self.profstack) < 1: 
-                    print "profstack empty error", metric
+                    print("profstack empty error", metric)
                     return
                 metric = self.profstack.pop()
                 metric["span"] = self.time - metric["time"]
                 metric["time"] = self.time
                 if metric["span"] < 0:
-                    print("profstack invalid pop ",metric)
+                    print(("profstack invalid pop ",metric))
              
         #self.printMetric(metric);
         
@@ -431,13 +440,13 @@ class swfInstance():
             elif name==".tlm.active":
                 self.activeTest = metric['span'] 
         elif name==".capabilities":
-            from urlparse import urlparse
-            from urllib2 import unquote
+            from urllib.parse import urlparse
+            from urllib.parse import unquote
             url = urlparse("http://foo.bar?"+unquote(metric['value']))
-            print "cap", url
+            print("cap", url)
             self.capabilities = dict([part.split('=') for part in url[4].split('&')]) 
             #self.capabilities = dict([part.split('=') for part in url.split('&')]) 
-            print "capabilities",self.capabilities 
+            print("capabilities",self.capabilities) 
 
     def flatten(self, metric, timeLine):
         """ creates a flat list by inserting fragments for nested logic
@@ -446,11 +455,11 @@ class swfInstance():
         """
         #print "flattening", metric
         name = metric['name']
-        if metric.has_key("span"):
+        if "span" in metric:
             span = metric['span']
             end =  metric['time']
             if span < 0:
-                print "Invalid Metric span"
+                print("Invalid Metric span")
             #print "flatten metric", metric
             start = end-span
             self.indexList.addFrame(name, len(timeLine), start)
@@ -461,7 +470,7 @@ class swfInstance():
             childIndex = -1
             i = len(timeLine) - 1
             while i >=0:
-                if timeLine[i].has_key('time'):
+                if 'time' in timeLine[i]:
                     if timeLine[i]['time'] >= start:
                         childIndex = i
                     else:
@@ -475,7 +484,7 @@ class swfInstance():
                 
                 # add children back in, inserting fragmented spans as needed
                 for child in children:
-                    if child.has_key('span'):
+                    if 'span' in child:
                         childStart = child['time']
                         childSpan = child['span']
                         childSpanSum += childSpan
@@ -496,7 +505,7 @@ class swfInstance():
                         timeLine.append(child)  
                         
             if childSpanSum > metric['span']:
-                print "Invalid Child span", metric['span'], childSpanSum          
+                print("Invalid Child span", metric['span'], childSpanSum)          
             timeLine.append({'time':start,'span':span,'name':name,'depth':0})             
             #print "appended", {'time':start,'span':span,'name':name}
         else:
@@ -514,16 +523,16 @@ class swfInstance():
             m2 = self.timeLine[i]
             t = m['time']
             t2 = m2['time']
-            if t2 < t: print "time is less @ ", i, m, m2
-            if m.has_key('span'):
+            if t2 < t: print("time is less @ ", i, m, m2)
+            if 'span' in m:
                 s = m['span']
-                if t+s > t2: print "span is too long @ ", i, m, m2
+                if t+s > t2: print("span is too long @ ", i, m, m2)
 
     
     def process(self):
-        print "Date = " + str(self.date)   
-        print self.getInfoStr();
-        print "Startup Time = ", timeStr(self.startTime)
+        print("Date = " + str(self.date))   
+        print(self.getInfoStr());
+        print("Startup Time = ", timeStr(self.startTime))
         
         if options.range:
             try:
@@ -531,20 +540,20 @@ class swfInstance():
                 rstart = int(rstart)
                 rend = int(rend)
             except:
-                print "Invalid range %s, must be in start:end format" % options.range
+                print("Invalid range %s, must be in start:end format" % options.range)
                 return            
             pos = self.indexList.getPositionByIndex(rstart)
             pos2 = self.indexList.getPositionByIndex(rend)
             indexList = self.indexList[rstart:rend]
             selection = self.timeLine[pos:pos2]
             if not len(selection): 
-                print "No metrics in Range %d:%d" % (rstart, rend)
+                print("No metrics in Range %d:%d" % (rstart, rend))
                 return
             t1 = selection[0].get('time',0)
             t2 = selection[-1].get('time',0)
             renderPos1 = self.renderList.getIndexByTime(t1)
             renderPos2 = self.renderList.getIndexByTime(t2)
-            print "Range %d:%d (%s-%s)" % (rstart, len(indexList), timeStr(t1), timeStr(t2))
+            print("Range %d:%d (%s-%s)" % (rstart, len(indexList), timeStr(t1), timeStr(t2)))
             renderList = self.renderList[renderPos1:renderPos2]
         else:
             rstart = 0
@@ -553,30 +562,30 @@ class swfInstance():
             renderList = self.renderList 
             indexList = self.indexList      
         
-        print "Metric Count = %d" % len(selection)
-        print "Frame Count = %d" % len(indexList)
-        print "Render Count = %d" % len(renderList)
+        print("Metric Count = %d" % len(selection))
+        print("Frame Count = %d" % len(indexList))
+        print("Render Count = %d" % len(renderList))
    
         #self.validate()
         reporter = Reporter(selection);
         
         runTime = reporter.endTime-reporter.startTime
-        print "Run Time = ", timeStr(runTime)
-        print "Time in Player = ", timeStr(reporter.getSpan())
+        print("Run Time = ", timeStr(runTime))
+        print("Time in Player = ", timeStr(reporter.getSpan()))
         if runTime:
-            print "Load = %.2f%%" % ((reporter.getSpan()/runTime)*100)
+            print("Load = %.2f%%" % ((reporter.getSpan()/runTime)*100))
         average, stdev = indexList.meanstdv();
         if average:
             #print average, len(renderList)
-            print "Frame FPS = %.2f" % (1000000/average)
+            print("Frame FPS = %.2f" % (1000000/average))
         average, stdev = renderList.meanstdv();
         if average:
             #print average, len(renderList)
-            print "Render RPS = %.2f" % (1000000/average)
+            print("Render RPS = %.2f" % (1000000/average))
         if self.inactiveTest:
-            print "Telemetry Inactive Test", self.inactiveTest
+            print("Telemetry Inactive Test", self.inactiveTest)
         if self.activeTest:
-            print "Telemetry Active Test", self.activeTest
+            print("Telemetry Active Test", self.activeTest)
             
         
         reporter.report()
@@ -584,7 +593,7 @@ class swfInstance():
         if options.showFrames: 
             for index in range(rstart,rend):
                 self.rangeReport(index, index+1)
-        print                
+        print()                
 
     def rangeReport(self, index1, index2):
         pos = self.indexList.getPositionByIndex(index1)
@@ -597,12 +606,12 @@ class swfInstance():
             load = ((reporter.getSpan()/reporter.getInterval())*100)
         if options.loadFilter and load < options.loadFilter: return
         if index1+1 == index2:
-            print "\nReport for frame #", index1  
+            print("\nReport for frame #", index1)  
         else:  
-            print "\nReport for range %d-%d" % index1, index2   
+            print("\nReport for range %d-%d" % (index1, index2))
         frameTime =frame[0].get('time',0)
-        print "Time: %s (%d/%d)"% (timeStr(frameTime),reporter.getInterval(),reporter.getSpan())
-        print "Load %.2f%%" % load
+        print("Time: %s (%d/%d)"% (timeStr(frameTime),reporter.getInterval(),reporter.getSpan()))
+        print("Load %.2f%%" % load)
 
         reporter.report()
         if options.showMetrics:
@@ -639,7 +648,7 @@ if __name__ == '__main__':
     options.frameMarker =  ".swf.frame"  # change this to redefine a frame
     
     for filename in args:
-        print("\nReport for: "+filename )
+        print(("\nReport for: "+filename ))
         
         file = open(filename, 'rb')
         data = file.read()

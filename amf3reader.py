@@ -24,7 +24,7 @@ class Metric:
     pass
 
 def ByteToHex( byteStr ):
-    return ' '.join( [ "%02X" % ord( x ) for x in byteStr ] )
+    return ' '.join( [ "%02X" % (x if isinstance(x, int) else ord(x)) for x in byteStr ] )
 
 class amf3reader(dict):
     """
@@ -91,7 +91,7 @@ class amf3reader(dict):
             obj = self.objectsList[index];
             return obj;
         else :
-            print("invalid object reference" + str(index));
+            print(("invalid object reference" + str(index)));
             raise Exception("Invalid reference");
         
     def clearObjectsList(self):
@@ -102,16 +102,16 @@ class amf3reader(dict):
             string = self.stringList[index];
         else:
             string = "unknown"
-            print("invalid string reference " + str(index))
+            print(("invalid string reference " + str(index)))
         return string
         
     def printHex(self,count):
          if self.verbose and self.pos+count <= len(self.data):
-             print ByteToHex(self.data[self.pos:self.pos+count]), 
+             print(ByteToHex(self.data[self.pos:self.pos+count]), end=' ') 
         
     def peekByte(self):
         if (self.pos < len(self.data)):
-            return ord(self.data[self.pos])
+            return self.data[self.pos]
         else:
             return None
             
@@ -121,7 +121,7 @@ class amf3reader(dict):
             val = self.data[self.pos]
             self.printHex(1)
             self.pos += 1
-            return ord(val)
+            return val
         else:
             raise EOFError;
         return val
@@ -159,7 +159,7 @@ class amf3reader(dict):
 
     def readBytes(self,length):
         val = None
-        if (self.verbose): print "bytes: ",
+        if (self.verbose): print("bytes: ", end=' ')
 		
         if self.pos+length <= len(self.data):
             val = self.data[self.pos:self.pos+length]
@@ -168,7 +168,7 @@ class amf3reader(dict):
         else:
             raise EOFError;
             
-        if (self.verbose): print ""; # Move to next line (self.printHex above would have printed all bytes)
+        if (self.verbose): print(""); # Move to next line (self.printHex above would have printed all bytes)
         return val
 
 
@@ -197,20 +197,24 @@ class amf3reader(dict):
         """ reads and AMF formatted string tracking references """
         
         if (self.verbose and stringWithoutMarker):
-            print "String(wm) ",
+            print("String(wm) ", end=' ')
         
         ref = self.readUint29()
         
         if ref == None: return None
         if (ref & 1) == 0:
-            if (self.verbose) : print "Ref: %d" %(ref>>1),
+            if (self.verbose) : print("Ref: %d" %(ref>>1), end=' ')
             return self.getString(ref >> 1);
         length = ref >> 1;
         if length == 0:
             return ""
         
-        if (self.verbose) : print " (%d) Len: %d" % (len(self.stringList), (ref>>1)),
+        if (self.verbose) : print(" (%d) Len: %d" % (len(self.stringList), (ref>>1)), end=' ')
         s = self.readBytes(length)
+        
+        # Python 3: decode bytes to string
+        if isinstance(s, bytes):
+            s = s.decode('utf-8')
         
         if not noCache:  # for flash11 support
             self.addString(s)
@@ -226,71 +230,71 @@ class amf3reader(dict):
 
         if encoding == self.kIntegerAtomType:
             value = self.readUint29(); 
-            if (self.verbose) : print "Int29=%d" % value;
+            if (self.verbose) : print("Int29=%d" % value);
         elif encoding == self.kDoubleAtomType:
             value = self.readDouble(); 
-            if (self.verbose) : print "Double=%g" % value;
+            if (self.verbose) : print("Double=%g" % value);
         elif encoding == self.kStringAtomType:
-            if (self.verbose) : print "String ",
+            if (self.verbose) : print("String ", end=' ')
             value = self.readAmfString(False, self.flash11Mode); # early format support
-            if (self.verbose) : print " \"%s\"" % value;
+            if (self.verbose) : print(" \"%s\"" % value);
         elif encoding == self.kNullAtomType:
             value = None;
-            if (self.verbose) : print "Null"
+            if (self.verbose) : print("Null")
         elif encoding == self.kUndefinedAtomType:
             value = None;
-            if (self.verbose) : print "Undefined"
+            if (self.verbose) : print("Undefined")
         elif encoding == self.kFalseAtomType:
             value = False; 
-            if (self.verbose) : print "False"
+            if (self.verbose) : print("False")
         elif encoding == self.kTrueAtomType:
             value = True; 
-            if (self.verbose) : print "True"
+            if (self.verbose) : print("True")
         elif encoding == self.kDateAtomType:
             ref = self.readUint29()
             
-            if (self.verbose) : print "Date ",
+            if (self.verbose) : print("Date ", end=' ')
             
             if (ref & 1) == 0:
                 value = self.getObject(ref>>1);
-                if (self.verbose): print "Ref: " + str(ref>>1);
+                if (self.verbose): print("Ref: " + str(ref>>1));
             else:
-                if (self.verbose) : print "(%d)" % len(self.objectsList);
+                if (self.verbose) : print("(%d)" % len(self.objectsList));
                 value = self.readDouble(); # dates are written as doubles
-                if (self.verbose) : print " " + str(value) + " " + datetime.fromtimestamp(value/1000).isoformat();
+                if (self.verbose) : print(" " + str(value) + " " + datetime.fromtimestamp(value/1000).isoformat());
                 self.addObject(value);
         elif (encoding == self.kAvmMinusXmlAtomType or
             encoding == self.kAvmPlusXmlAtomType ):
             ref = self.readUint29()
             if (self.verbose) : 
-                print "XML ",
+                print("XML ", end=' ')
                 if encoding == self.kAvmMinusXmlAtomType :
-                    print "- ",
+                    print("- ", end=' ')
                 else :
-                    print "+ ",
+                    print("+ ", end=' ')
             
             if (ref & 1) == 0:
                 value = self.getObject(ref>>1);
-                if (self.verbose) : print "Ref: " + str(ref>>1);
+                if (self.verbose) : print("Ref: " + str(ref>>1));
             else:
-                if (self.verbose) : print "(%d)" % len(self.objectsList);
+                if (self.verbose) : print("(%d)" % len(self.objectsList));
                 if (self.verbose) : self.printHex(ref >> 1)
                 value = self.readBytes(ref >> 1); # return as string for now
-                if (self.verbose) : print value.encode()
+                if (self.verbose) : print(value.encode())
                 self.addObject(value);
         elif encoding == self.kDictionaryObjectType:
             ref = self.readUint29()
             
-            if (self.verbose) : print "Dictionary ",
+            if (self.verbose) : print("Dictionary ", end=' ')
             if (ref & 1) == 0:
                 value = self.getObject(ref>>1);
-                if (self.verbose) : print "Ref: " + str(ref>>1);
+                if (self.verbose) : print("Ref: " + str(ref>>1));
             else:
                 if (self.verbose) : 
-                    print "(%d)" % len(self.objectsList) ,
-                    print " count: %d" %(ref>>1);
+                    print("(%d)" % len(self.objectsList), end=' ')
+                    print(" count: %d" %(ref>>1));
                 weakref = self.readByte() == 1
-                if (self.verbose) : print "weakRef";
+                if (self.verbose) : print("weakRef");
                 count = ref >> 1
                 value = {}
                 self.addObject(value);
@@ -301,36 +305,36 @@ class amf3reader(dict):
                     #print val
                     value[str(key)] = val
                     count -= 1
-                if (self.verbose) : print '\n',
+                if (self.verbose) : print('\n', end=' ')
         elif encoding == self.kArrayAtomType:
             value = {}
             ref = self.readUint29()
-            if (self.verbose) : print "Array ",
+            if (self.verbose) : print("Array ", end=' ')
             
             if (ref & 1) == 0 :
                 value = self.getObject(ref>>1);
-                if (self.verbose) : print "Ref: " + str(ref);
+                if (self.verbose) : print("Ref: " + str(ref));
             else :
                 if (self.verbose) : 
-                    print "(%d)" % len(self.objectsList)
-                    print "count: %d" % (ref>>1);
+                    print("(%d)" % len(self.objectsList))
+                    print("count: %d" % (ref>>1));
                 self.addObject(value);
                 count = ref >> 1
                 # read the non-dense portion
                 s = self.readAmfString(True)
                 while  s and len(s)>0:
-                    if (self.verbose) : print "%s (dyn)" % (s)
+                    if (self.verbose) : print("%s (dyn)" % (s))
                     v = self.readAmfObject()
                     value[s] = v
                     s = self.readAmfString(True)
-                    if (self.verbose) : print ""
+                    if (self.verbose) : print("")
                  #now read the dense portion
                 i = 0
                 while i < count:
-                    if (self.verbose) : print "[%d]" % i
+                    if (self.verbose) : print("[%d]" % i)
                     value[i] = self.readAmfObject();
                     i += 1
-                if (self.verbose) : print '\n',
+                if (self.verbose) : print('\n', end=' ')
         elif ( encoding == self.kTypedVectorIntType or
             encoding == self.kTypedVectorUintType or
             encoding == self.kTypedVectorDoubleType or
@@ -339,22 +343,22 @@ class amf3reader(dict):
             
             if (self.verbose) : 
                 if (encoding == self.kTypedVectorIntType):
-                    print "Vector Int",
+                    print("Vector Int", end=' ')
                 elif (encoding == self.kTypedVectorUintType) :
-                    print "Vector Uint",
+                    print("Vector Uint", end=' ')
                 elif (encoding == self.kTypedVectorDoubleType) :
-                    print "Vector Double",
+                    print("Vector Double", end=' ')
                 else:
-                    print "Vector Object",
+                    print("Vector Object", end=' ')
             
             if (ref & 1) == 0:
                 value = self.getObject(ref>>1);
-                print " Ref: " + str(ref>>1);
+                print(" Ref: " + str(ref>>1));
             else:
                 count = ref >> 1
-                if (self.verbose): print "length = %d" % count
+                if (self.verbose): print("length = %d" % count)
                 fixed = self.readByte() == 1
-                if (self.verbose) : print "fixed"
+                if (self.verbose) : print("fixed")
                 value = []
                 self.addObject(value);
                 if (encoding == self.kTypedVectorIntType or encoding == self.kTypedVectorUintType):
@@ -362,44 +366,44 @@ class amf3reader(dict):
                         self.printHex(4)
                         value.append(self.readInt())
                         count -= 1
-                        if (self.verbose) : print " "
-                    if (self.verbose): print value
+                        if (self.verbose) : print(" ")
+                    if (self.verbose): print(value)
                 elif encoding == self.kTypedVectorDoubleType:
                     while(count > 0):
                         value.append(self.readDouble())
                         count -= 1
                 elif encoding == self.kTypedVectorObjectType:
                     className = self.readAmfString(True);
-                    if (self.verbose): print "ClassName = %s" % className
+                    if (self.verbose): print("ClassName = %s" % className)
                     while (count > 0):
                         value.append(self.readAmfObject());
                         count -= 1
-                if (self.verbose) : print '\n',
+                if (self.verbose) : print('\n', end=' ')
         elif encoding == self.kByteArrayAtomType:
             ref = self.readUint29();
             
             if (self.verbose):
-                print "ByteArray ",
+                print("ByteArray ", end=' ')
             
             if (ref & 1) == 0:
                 value = self.getObject(ref>>1);
-                if (self.verbose) : print "Ref: " + str(ref>>1)
+                if (self.verbose) : print("Ref: " + str(ref>>1))
             else:
-                if (self.verbose) : print "count: " + str(ref>>1);
+                if (self.verbose) : print("count: " + str(ref>>1));
                 value = self.readBytes(ref>>1);
                 self.addObject(value);
         elif encoding == self.kObjectAtomType:
             ref = self.readUint29()
             #if ref == None: return None
             if (self.verbose):
-                print "Object ",
+                print("Object ", end=' ')
             if (ref & 1) == 0: 
                 value = self.getObject(ref>>1);
-                if (self.verbose) : print "Ref: " + str(ref>>1);
+                if (self.verbose) : print("Ref: " + str(ref>>1));
             else :
-                if (self.verbose) : print "(%d)" % len(self.objectsList),
+                if (self.verbose) : print("(%d)" % len(self.objectsList), end=' ')
                 if ((ref & 3) == 1):
-                    if (self.verbose) : print "Traits Ref: " + str(ref>>2) + " (class: %s slots: %d dynamic: %d)" %(self.traitsList[ref>>2]['className'], len(self.traitsList[ref>>2]['slots']), self.traitsList[ref>>2]['dynamic']);
+                    if (self.verbose) : print("Traits Ref: " + str(ref>>2) + " (class: %s slots: %d dynamic: %d)" %(self.traitsList[ref>>2]['className'], len(self.traitsList[ref>>2]['slots']), self.traitsList[ref>>2]['dynamic']));
                     traits = self.traitsList[ref >> 2];
                 else:
                     traits = {}
@@ -411,12 +415,12 @@ class amf3reader(dict):
                     traits['count'] = ref >> 4
                     
                     if self.verbose: 
-                         print "Traits (%d) slots: %d dynamic: %d" % (len(self.traitsList), (ref>>4), ((ref & 8) >> 3))
+                         print("Traits (%d) slots: %d dynamic: %d" % (len(self.traitsList), (ref>>4), ((ref & 8) >> 3)))
                     
                     className = self.readAmfString(True)
                     
                     if self.verbose:
-                        print "class: " + className
+                        print("class: " + className)
                     
                     if className and len(className) > 0:
                         traits['className'] = className
@@ -427,7 +431,7 @@ class amf3reader(dict):
                     count = traits['count']
                     while (count):
                         slots.append(self.readAmfString(True))
-                        if self.verbose: print slots[len(slots)-1]
+                        if self.verbose: print(slots[len(slots)-1])
                         count -= 1
                     traits['slots'] = slots
                     self.traitsList.append(traits)
@@ -443,13 +447,13 @@ class amf3reader(dict):
                 if (traits['dynamic'] == 1):
                     s = self.readAmfString(True)
                     while  s and len(s)>0:
-                        if (self.verbose) : print "%s (dyn)" % (s)
+                        if (self.verbose) : print("%s (dyn)" % (s))
                         v = self.readAmfObject()
                         value[s] = v
                         s = self.readAmfString(True)
-                if (self.verbose) : print '\n',
+                if (self.verbose) : print('\n', end=' ')
         else:
-            print("invalid data type", encoding);
+            print(("invalid data type", encoding));
             #throw new Error("invalid data stream");
             value = None;
         return value;
@@ -458,7 +462,7 @@ class amf3reader(dict):
     def getFormat(self):
         if (len(self.data)<1):
             return None
-        firstByte = ord(self.data[0])
+        firstByte = self.data[0]
         if firstByte == self.kObjectAtomType:
             self.format = "amfstream"   # raw stream from player
         elif firstByte == self.kArrayAtomType:
@@ -477,12 +481,12 @@ class amf3reader(dict):
             try:
                 name = self.readAmfString(True)
             
-                if (self.verbose) : print "String=%s" % name;
+                if (self.verbose) : print("String=%s" % name);
                 if name.endswith(".span"):
                     name = name.rsplit('.',1)[0] # strip the .span extension
                     span = self.readAmfObject();
                     tname = self.readAmfString(True);
-                    if (self.verbose) : print "String=%s" % tname;
+                    if (self.verbose) : print("String=%s" % tname);
                     time = self.readAmfObject();
                     if name is not None and tname is not None and tname.endswith(".time") \
                         and span is not None and time is not None:
@@ -507,7 +511,7 @@ class amf3reader(dict):
                 record = self.readAmfObject();
             except EOFError:
                 if (self.verbose):
-                    print "Partial record warning"
+                    print("Partial record warning")
                 self.pos = recordPos; #rewind to start
                 self.traitsList = self.traitsList[0:traitsLen];
                 self.stringList = self.stringList[0:stringCount];
@@ -536,9 +540,9 @@ if __name__ == '__main__':
     from pprint import pprint
 
     if len(sys.argv) == 1:
-        print 'Usage: %s filename [filename]...' % sys.argv[0]
-        print 'Where filename is a .flm file'
-        print 'eg. %s myfile' % sys.argv[0]
+        print('Usage: %s filename [filename]...' % sys.argv[0])
+        print('Where filename is a .flm file')
+        print('eg. %s myfile' % sys.argv[0])
     for filename in sys.argv[1:]:
         file = open(filename, 'rb')
         reader = amf3reader(file.read());
